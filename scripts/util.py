@@ -3,6 +3,7 @@ import GPy
 import sklearn.preprocessing as pp
 from sklearn.metrics import mean_squared_error as MSE
 from scipy.stats import pearsonr as pearson
+import json
 
 
 def read_data(feats_file, labels_file, size=None):
@@ -65,10 +66,12 @@ def train_gp_model(train_data, model):
         gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat32)
     if model == 'wgp_mat32_ard':
         mat32 = GPy.kern.Matern32(17, ARD=True)
-        gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=mat32)
+        warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0)
+        gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=mat32, warping_function=warp)
     if model == 'wgp_rbf_iso':
         rbf = GPy.kern.RBF(17)
-        gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=rbf, warping_terms=1)
+        warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0)
+        gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=rbf, warping_function=warp)
     gp.optimize_restarts(num_restarts=5, max_iters=100, robust=True)
 
     #gp.optimize()
@@ -84,11 +87,36 @@ def get_metrics(model, test_data):
     preds = model.predict(feats)
     preds_mean = preds[0].flatten()
     preds_var = preds[1]
-    print preds_mean[:10]
-    print gold_labels[:10]
+    #print preds_mean[:10]
+    #print gold_labels[:10]
     rmse = np.sqrt(MSE(preds_mean, gold_labels))
     prs = pearson(preds_mean, gold_labels)
-    return rmse, prs
+    nlpd = - np.mean(model.log_predictive_density(feats, gold_labels[:, None]))
+    return rmse, prs, nlpd
+
+
+def save_parameters(gp, target):
+    """
+    Save the parameters of a GP to a json file.
+    """
+    pdict = {n:list(gp[n].flatten()) for n in gp.parameter_names()}
+    with open(target, 'w') as f:
+        json.dump(pdict, f)
+
+
+def load_parameters(gp, target):
+    """
+    Load the parameters of a GP from a json file.
+    """
+    with open(target) as f:
+        pdict = json.load(f)
+    for p in pdict:
+        if p == 'warp_tanh.psi':
+            gp[p] = np.array(pdict[p]).reshape(3, 3)
+        else:
+            gp[p] = pdict[p]
+
+
 
 if __name__ == "__main__":
     import sys
@@ -104,9 +132,14 @@ if __name__ == "__main__":
 
     model = 'gp_rbf_iso'
     #model = 'gp_rbf_ard'
-    model = 'gp_mat32_ard'
+    #model = 'gp_mat32_ard'
     #model = 'wgp_mat32_ard'
-    #model = 'wgp_rbf_iso'
+    model = 'wgp_rbf_iso'
     gp = train_gp_model(train_data, model)
     print gp
-    print get_metrics(gp, test_data)
+    rmse, ps, nlpd = get_metrics(gp, test_data)
+    print "RMSE:\t\t%.4f" % rmse
+    print "Pearsons:\t%.4f\t%.4f" % ps
+    print "NLPD:\t\t%.4f" % nlpd
+    save_parameters(gp, '../saved_models/' + model)
+    import ipdb; ipdb.set_trace()
