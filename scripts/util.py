@@ -104,6 +104,21 @@ def save_parameters(gp, target):
         json.dump(pdict, f)
 
 
+def save_gradients(gp, target):
+    """
+    Save the gradients of a GP.
+    """
+    np.savetxt(target, gp.gradient)
+
+
+def save_metrics(metrics, target):
+    with open(target, 'w') as f:
+        f.write(str(metrics[0]) + '\n')
+        f.write(str(metrics[1][0]) + '\n')
+        f.write(str(metrics[1][1]) + '\n')
+        f.write(str(metrics[2]) + '\n')
+
+
 def load_parameters(gp, target):
     """
     Load the parameters of a GP from a json file.
