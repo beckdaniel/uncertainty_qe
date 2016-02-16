@@ -66,13 +66,18 @@ def train_gp_model(train_data, model):
         gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat32)
     if model == 'wgp_mat32_ard':
         mat32 = GPy.kern.Matern32(17, ARD=True)
-        warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0)
+        warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0, n_terms=2)
         gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=mat32, warping_function=warp)
     if model == 'wgp_rbf_iso':
         rbf = GPy.kern.RBF(17)
-        warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0)
+        warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0, n_terms=1)
+        #warp = GPy.util.warping_functions.IdentityFunction()
         gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=rbf, warping_function=warp)
-    gp.optimize_restarts(num_restarts=5, max_iters=100, robust=True)
+        #gp['warp_tanh.psi'][:,0:2].set_prior(GPy.priors.LogGaussian(2, 4))
+        #gp['warp_tanh.d'].set_prior(GPy.priors.LogGaussian(0.1, 0.01))
+        #gp['Gaussian_noise.variance'].set_prior(GPy.priors.LogGaussian(0.5, 0.1))
+        #gp['rbf.variance'].set_prior(GPy.priors.LogGaussian(0.5, 0.1))
+    gp.optimize_restarts(num_restarts=5, max_iters=200, robust=True)
 
     #gp.optimize()
     return gp
@@ -147,14 +152,15 @@ if __name__ == "__main__":
 
     model = 'gp_rbf_iso'
     #model = 'gp_rbf_ard'
-    #model = 'gp_mat32_ard'
-    #model = 'wgp_mat32_ard'
-    model = 'wgp_rbf_iso'
+    model = 'gp_mat32_ard'
+    model = 'wgp_mat32_ard'
+    #model = 'wgp_rbf_iso'
     gp = train_gp_model(train_data, model)
     print gp
+    gp.checkgrad()
     rmse, ps, nlpd = get_metrics(gp, test_data)
     print "RMSE:\t\t%.4f" % rmse
     print "Pearsons:\t%.4f\t%.4f" % ps
     print "NLPD:\t\t%.4f" % nlpd
-    save_parameters(gp, '../saved_models/' + model)
+    #save_parameters(gp, '../saved_models/' + model)
     import ipdb; ipdb.set_trace()
