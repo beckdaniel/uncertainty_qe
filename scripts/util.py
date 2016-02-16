@@ -77,7 +77,7 @@ def train_gp_model(train_data, model):
         #gp['warp_tanh.d'].set_prior(GPy.priors.LogGaussian(0.1, 0.01))
         #gp['Gaussian_noise.variance'].set_prior(GPy.priors.LogGaussian(0.5, 0.1))
         #gp['rbf.variance'].set_prior(GPy.priors.LogGaussian(0.5, 0.1))
-    gp.optimize_restarts(num_restarts=5, max_iters=200, robust=True)
+    gp.optimize_restarts(num_restarts=10, max_iters=200, robust=True)
 
     #gp.optimize()
     return gp
