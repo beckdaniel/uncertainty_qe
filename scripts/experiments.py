@@ -72,7 +72,8 @@ def train_and_report(model):
 # Default is to run on all datasets, this can be changed by
 # using a different list with fewer elements.
 #DATASETS = ['eamt11_fr-en', 'eamt11_en-es', 'wmt14_en-es']
-DATASETS = ['wmt14_en-es']
+DATASETS = [sys.argv[1]]
+MODELS = [sys.argv[2]]
 SPLIT_DIR = os.path.join('..','splits')
 
 # Generate the splits. Each split has mean-normalized features and
@@ -80,5 +81,5 @@ SPLIT_DIR = os.path.join('..','splits')
 split_all_data()
 
 # The simplest model of all: GP RBF Isotropic
-MODEL_DIR = os.path.join('..', 'models', 'gp_rbf_iso')
-train_and_report('gp_rbf_iso')
+MODEL_DIR = os.path.join('..', 'models', MODELS[0])
+train_and_report(MODELS[0])

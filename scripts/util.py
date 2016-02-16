@@ -58,6 +58,12 @@ def train_gp_model(train_data, model):
     train_labels = train_data[:, -1:]
     if model == 'gp_rbf_iso':
         gp = GPy.models.GPRegression(train_feats, train_labels)
+    elif model == 'gp_mat32_iso':
+        mat32 = GPy.kern.Matern32(17, ARD=False)
+        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat32)
+    elif model == 'gp_mat52_iso':
+        mat52 = GPy.kern.Matern52(17, ARD=False)
+        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat52)
     elif model == 'gp_rbf_ard':
         rbf = GPy.kern.RBF(17, ARD=True)
         gp = GPy.models.GPRegression(train_feats, train_labels, kernel=rbf)
