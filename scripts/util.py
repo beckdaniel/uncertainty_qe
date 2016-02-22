@@ -50,52 +50,45 @@ def normalize_test_data(test_data, scaler):
     return np.concatenate((norm_feats, labels_pw[:, None]), axis=1)
 
 
-def train_gp_model(train_data, model, params_file=None):
+def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=None):
     """
     Train a GP model with some training data.
+    A model has:
+    - A kernel (rbf, mat32, mat52)
+    - ISO or ARD (F, T)
+    - A warping function (t1, t2, t3, log, None)
+      If None, we train a standard GP
     """
     train_feats = train_data[:, :-1]
     train_labels = train_data[:, -1:]
 
-    # ISOTROPIC MODELS
-    if model == 'gp_rbf_iso':
-        gp = GPy.models.GPRegression(train_feats, train_labels)
-    elif model == 'gp_mat32_iso':
-        mat32 = GPy.kern.Matern32(17, ARD=False)
-        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat32)
-    elif model == 'gp_mat52_iso':
-        mat52 = GPy.kern.Matern52(17, ARD=False)
-        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat52)
+    # We first build the kernel
+    if kernel == 'rbf':
+        k = GPy.kern.RBF(17, ARD=ard)
+    elif kernel == 'mat32':
+        k = GPy.kern.Matern32(17, ARD=ard)
+    elif kernel == 'mat52':
+        k = GPy.kern.Matern52(17, ARD=ard)
 
-    # ARD MODELS
-    # These use parameters pre-trained on corresponding iso models
-    elif model == 'gp_rbf_ard':
-        rbf = GPy.kern.RBF(17, ARD=True)
-        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=rbf)
-        load_parameters(gp, params_file)
-    elif model == 'gp_mat32_ard':
-        mat32 = GPy.kern.Matern32(17, ARD=True)
-        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat32)
-        load_parameters(gp, params_file)
-    elif model == 'gp_mat52_ard':
-        mat32 = GPy.kern.Matern52(17, ARD=True)
-        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat32)
-        load_parameters(gp, params_file)
+    # Now we build the warping function
+    if warp == 'tanh1':
+        w = GPy.util.warping_functions.TanhWarpingFunction_d(n_terms=1, initial_y=0)
+    elif warp == 'tanh2':
+        w = GPy.util.warping_functions.TanhWarpingFunction_d(n_terms=2, initial_y=0)
+    elif warp == 'tanh3':
+        w = GPy.util.warping_functions.TanhWarpingFunction_d(n_terms=3, initial_y=0)
+    elif warp == 'log':
+        w = GPy.util.warping_functions.LogFunction()
 
+    # Finally we instantiate the model
+    if warp is None:
+        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=k)
+    else:
+        gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=k, warping_function=w)
 
-    if model == 'wgp_mat32_ard':
-        mat32 = GPy.kern.Matern32(17, ARD=True)
-        warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0, n_terms=2)
-        gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=mat32, warping_function=warp)
-    if model == 'wgp_rbf_iso':
-        rbf = GPy.kern.RBF(17)
-        warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0, n_terms=1)
-        #warp = GPy.util.warping_functions.IdentityFunction()
-        gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=rbf, warping_function=warp)
-        #gp['warp_tanh.psi'][:,0:2].set_prior(GPy.priors.LogGaussian(2, 4))
-        #gp['warp_tanh.d'].set_prior(GPy.priors.LogGaussian(0.1, 0.01))
-        #gp['Gaussian_noise.variance'].set_prior(GPy.priors.LogGaussian(0.5, 0.1))
-        #gp['rbf.variance'].set_prior(GPy.priors.LogGaussian(0.5, 0.1))
+    # TODO: initialize models with previous runs
+
+    # Now we optimize
     gp.optimize_restarts(num_restarts=10, max_iters=200, robust=True)
 
     #gp.optimize()
@@ -163,23 +156,28 @@ if __name__ == "__main__":
     LABELS_FILE = sys.argv[2]
     SIZE = int(sys.argv[3])
     SPLIT = int(sys.argv[4])
+    kernel = sys.argv[5]
+    ard = sys.argv[6]
+    if ard == 'False':
+        ard = False
+    else:
+        ard = True
+    warp = sys.argv[7]
+    if warp == "None":
+        warp = None
     data = read_data(FEATS_FILE, LABELS_FILE, size=SIZE)
     train_data = data[:SPLIT, :]
     test_data = data[SPLIT:, :]
     train_data, scaler = normalize_train_data(train_data)
     test_data = normalize_test_data(test_data, scaler)
 
-    model = 'gp_rbf_iso'
-    #model = 'gp_rbf_ard'
-    model = 'gp_mat32_ard'
-    model = 'wgp_mat32_ard'
-    #model = 'wgp_rbf_iso'
-    gp = train_gp_model(train_data, model)
+    gp = train_gp_model(train_data, kernel, warp, ard)
     print gp
+    #import ipdb; ipdb.set_trace()
     gp.checkgrad()
     rmse, ps, nlpd = get_metrics(gp, test_data)
     print "RMSE:\t\t%.4f" % rmse
     print "Pearsons:\t%.4f\t%.4f" % ps
     print "NLPD:\t\t%.4f" % nlpd
     #save_parameters(gp, '../saved_models/' + model)
-    import ipdb; ipdb.set_trace()
+    
