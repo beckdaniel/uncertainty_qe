@@ -4,6 +4,7 @@ import util
 import sys
 import os
 from sklearn import cross_validation, preprocessing
+import gc
 
 
 def split_all_data():
@@ -54,7 +55,13 @@ def train_and_report(model):
             fold_dir = os.path.join(SPLIT_DIR, DATASET, str(fold))
             train_data = np.loadtxt(os.path.join(fold_dir, 'train'))
             test_data = np.loadtxt(os.path.join(fold_dir, 'train'))
-            gp = util.train_gp_model(train_data, model)
+            params_file = None
+            if 'ard' in model:
+                # we preload the paramters
+                iso_model = model.replace('ard', 'iso')
+                params_file = os.path.join('..', 'models', iso_model,
+                                           DATASET, str(fold), 'params')
+            gp = util.train_gp_model(train_data, model, params_file)
             metrics = util.get_metrics(gp, test_data)
             output_dir = os.path.join(dataset_dir, str(fold))
             try: 
@@ -64,6 +71,7 @@ def train_and_report(model):
             util.save_parameters(gp, os.path.join(output_dir, 'params'))
             util.save_metrics(metrics, os.path.join(output_dir, 'metrics'))
             util.save_gradients(gp, os.path.join(output_dir, 'grads'))
+            gc.collect(2) # buggy GPy has allocation cycles...
                 
     
 

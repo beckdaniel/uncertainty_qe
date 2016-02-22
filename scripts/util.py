@@ -50,12 +50,14 @@ def normalize_test_data(test_data, scaler):
     return np.concatenate((norm_feats, labels_pw[:, None]), axis=1)
 
 
-def train_gp_model(train_data, model):
+def train_gp_model(train_data, model, params_file=None):
     """
     Train a GP model with some training data.
     """
     train_feats = train_data[:, :-1]
     train_labels = train_data[:, -1:]
+
+    # ISOTROPIC MODELS
     if model == 'gp_rbf_iso':
         gp = GPy.models.GPRegression(train_feats, train_labels)
     elif model == 'gp_mat32_iso':
@@ -64,12 +66,23 @@ def train_gp_model(train_data, model):
     elif model == 'gp_mat52_iso':
         mat52 = GPy.kern.Matern52(17, ARD=False)
         gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat52)
+
+    # ARD MODELS
+    # These use parameters pre-trained on corresponding iso models
     elif model == 'gp_rbf_ard':
         rbf = GPy.kern.RBF(17, ARD=True)
         gp = GPy.models.GPRegression(train_feats, train_labels, kernel=rbf)
-    if model == 'gp_mat32_ard':
+        load_parameters(gp, params_file)
+    elif model == 'gp_mat32_ard':
         mat32 = GPy.kern.Matern32(17, ARD=True)
         gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat32)
+        load_parameters(gp, params_file)
+    elif model == 'gp_mat52_ard':
+        mat32 = GPy.kern.Matern52(17, ARD=True)
+        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=mat32)
+        load_parameters(gp, params_file)
+
+
     if model == 'wgp_mat32_ard':
         mat32 = GPy.kern.Matern32(17, ARD=True)
         warp = GPy.util.warping_functions.TanhWarpingFunction_d(initial_y=0, n_terms=2)
