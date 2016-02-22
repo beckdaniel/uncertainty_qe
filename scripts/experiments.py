@@ -44,7 +44,7 @@ def split_all_data():
             np.savetxt(os.path.join(fold_dir, 'test'), test_data, fmt="%.5f")
 
 
-def train_and_report(model):
+def train_and_report(model_name, kernel, warp, ard):
     for DATASET in DATASETS:
         dataset_dir = os.path.join(MODEL_DIR, DATASET)
         try: 
@@ -56,12 +56,12 @@ def train_and_report(model):
             train_data = np.loadtxt(os.path.join(fold_dir, 'train'))
             test_data = np.loadtxt(os.path.join(fold_dir, 'train'))
             params_file = None
-            if 'ard' in model:
+            #if 'ard' in model:
                 # we preload the paramters
-                iso_model = model.replace('ard', 'iso')
-                params_file = os.path.join('..', 'models', iso_model,
-                                           DATASET, str(fold), 'params')
-            gp = util.train_gp_model(train_data, model, params_file)
+            #    iso_model = model.replace('ard', 'iso')
+            #    params_file = os.path.join('..', 'models', iso_model,
+            #                               DATASET, str(fold), 'params')
+            gp = util.train_gp_model(train_data, kernel, warp, ard, params_file)
             metrics = util.get_metrics(gp, test_data)
             output_dir = os.path.join(dataset_dir, str(fold))
             try: 
@@ -81,13 +81,24 @@ def train_and_report(model):
 # using a different list with fewer elements.
 #DATASETS = ['eamt11_fr-en', 'eamt11_en-es', 'wmt14_en-es']
 DATASETS = [sys.argv[1]]
-MODELS = [sys.argv[2]]
+KERNEL = sys.argv[2]
+WARP = sys.argv[3]
+ARD = sys.argv[4]
+MODEL_NAME = '_'.join([KERNEL, WARP, ARD])
+
+if ARD == 'False':
+    ARD = False
+else:
+    ARD = True
+if WARP == "None":
+    WARP = None
+
 SPLIT_DIR = os.path.join('..','splits')
 
 # Generate the splits. Each split has mean-normalized features and
 # pe-time per word in target segment.
-split_all_data()
+#split_all_data()
 
 # The simplest model of all: GP RBF Isotropic
-MODEL_DIR = os.path.join('..', 'models', MODELS[0])
-train_and_report(MODELS[0])
+MODEL_DIR = os.path.join('..', 'models', MODEL_NAME)
+train_and_report(MODEL_NAME, KERNEL, WARP, ARD)
