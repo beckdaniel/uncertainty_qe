@@ -1,5 +1,5 @@
 import numpy as np
-import GPy
+import GPflow
 import sklearn.preprocessing as pp
 from sklearn.metrics import mean_squared_error as MSE
 from scipy.stats import pearsonr as pearson
@@ -67,33 +67,33 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
 
     # We first build the kernel
     if kernel == 'rbf':
-        k = GPy.kern.RBF(17, ARD=ard)
+        k = GPflow.kernels.RBF(17, ARD=ard)
     elif kernel == 'mat32':
-        k = GPy.kern.Matern32(17, ARD=ard)
+        k = GPflow.kernels.Matern32(17, ARD=ard)
     elif kernel == 'mat52':
-        k = GPy.kern.Matern52(17, ARD=ard)
+        k = GPflow.kernels.Matern52(17, ARD=ard)
 
     # Now we build the warping function
     if warp == 'tanh1':
-        w = GPy.util.warping_functions.TanhFunction(n_terms=1, initial_y=initial_y)
-        w.psi[:,2] = -1.0
-        w.d.constrain_fixed(1)
+        w = GPflow.warping_functions.TanhFunction(n_terms=1)
+        w.c = -1.0
+        w.d.fixed = True
     elif warp == 'tanh2':
-        w = GPy.util.warping_functions.TanhFunction(n_terms=2, initial_y=initial_y)
-        w.psi[:,2] = [-1.0, -2.0]
-        w.d.constrain_fixed(1)
+        w = GPflow.warping_functions.TanhFunction(n_terms=2)
+        w.c = [-1.0, -2.0]
+        w.d.fixed = True
     elif warp == 'tanh3':
-        w = GPy.util.warping_functions.TanhFunction(n_terms=3, initial_y=initial_y)
-        w.psi[:,2] = [-1.0, -2.0, -3.0]
-        w.d.constrain_fixed(1)
+        w = GPflow.warping_functions.TanhFunction(n_terms=3)
+        w.c = [-1.0, -2.0, -3.0]
+        w.d.fixed = True
     elif warp == 'log':
-        w = GPy.util.warping_functions.LogFunction()
+        w = GPflow.warping_functions.LogFunction()
 
     # Finally we instantiate the model
     if warp is None:
-        gp = GPy.models.GPRegression(train_feats, train_labels, kernel=k)
+        gp = GPflow.gpr.GPR(train_feats, train_labels, k)
     else:
-        gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=k, warping_function=w)
+        gp = GPflow.warped_gp.WarpedGP(train_feats, train_labels, k, warp=w)
 
     # TODO: initialize models with previous runs
 
@@ -101,7 +101,23 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     #gp.optimize_restarts(num_restarts=10, max_iters=200, robust=True)
 
     gp.optimize(max_iters=100)
+    # Sometimes we get warp hypers == 0 and this result in errors
+    # in the prediction. We clip the values to a small value here
+    if warp is not None and warp != 'log':
+        clip_hypers(gp)
     return gp
+
+
+def clip_hypers(gp):
+    """
+    Sometimes we get warp hypers == 0 and this result in errors
+    in the prediction due to positive transforms. Note we don't
+    need to do that to gp.c because it doesn't have a transform.
+    """
+    TOL = 1e-8
+    gp.warp.a.set_state([[TOL if elem < TOL else elem for elem in gp.warp.a._array[0]]])
+    gp.warp.b.set_state([[TOL if elem < TOL else elem for elem in gp.warp.b._array[0]]])
+    gp.warp.d.set_state([TOL if elem < TOL else elem for elem in gp.warp.d._array])
 
 
 def get_metrics(model, test_data):
@@ -110,14 +126,14 @@ def get_metrics(model, test_data):
     """
     feats = test_data[:, :-1]
     gold_labels = test_data[:, -1]
-    preds = model.predict(feats)
+    preds = model.predict_y(feats)
     preds_mean = preds[0].flatten()
     preds_var = preds[1]
     #print preds_mean[:10]
     #print gold_labels[:10]
     rmse = np.sqrt(MSE(preds_mean, gold_labels))
     prs = pearson(preds_mean, gold_labels)
-    nlpd = - np.mean(model.log_predictive_density(feats, gold_labels[:, None]))
+    nlpd = - np.mean(model.predict_density(feats, gold_labels[:, None]))
     return rmse, prs, nlpd
 
 
@@ -184,7 +200,7 @@ if __name__ == "__main__":
     gp = train_gp_model(train_data, kernel, warp, ard)
     print gp
     #import ipdb; ipdb.set_trace()
-    gp.checkgrad()
+    #gp.checkgrad()
     rmse, ps, nlpd = get_metrics(gp, test_data)
     #import ipdb; ipdb.set_trace()
     print "RMSE:\t\t%.4f" % rmse

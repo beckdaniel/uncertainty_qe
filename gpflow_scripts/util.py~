@@ -76,18 +76,21 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     # Now we build the warping function
     if warp == 'tanh1':
         w = GPy.util.warping_functions.TanhFunction(n_terms=1, initial_y=initial_y)
-        w.psi[:,2] = -1.0
-        w.d.constrain_fixed(1)
     elif warp == 'tanh2':
         w = GPy.util.warping_functions.TanhFunction(n_terms=2, initial_y=initial_y)
-        w.psi[:,2] = [-1.0, -2.0]
-        w.d.constrain_fixed(1)
     elif warp == 'tanh3':
         w = GPy.util.warping_functions.TanhFunction(n_terms=3, initial_y=initial_y)
-        w.psi[:,2] = [-1.0, -2.0, -3.0]
-        w.d.constrain_fixed(1)
+    elif warp == 'logistic1':
+        w = GPy.util.warping_functions.LogisticFunction(n_terms=1, initial_y=initial_y)
+    elif warp == 'logistic2':
+        w = GPy.util.warping_functions.LogisticFunction(n_terms=2, initial_y=initial_y)
+    elif warp == 'logistic3':
+        w = GPy.util.warping_functions.LogisticFunction(n_terms=3, initial_y=initial_y)
     elif warp == 'log':
         w = GPy.util.warping_functions.LogFunction()
+    elif warp == 'logit':
+        w = GPy.util.warping_functions.LogitFunction()
+        w['.*psi.*'].constrain_bounded(0.1,2)
 
     # Finally we instantiate the model
     if warp is None:
@@ -98,9 +101,9 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     # TODO: initialize models with previous runs
 
     # Now we optimize
-    #gp.optimize_restarts(num_restarts=10, max_iters=200, robust=True)
+    gp.optimize_restarts(num_restarts=10, max_iters=200, robust=True)
 
-    gp.optimize(max_iters=100)
+    #gp.optimize()
     return gp
 
 
@@ -183,10 +186,10 @@ if __name__ == "__main__":
 
     gp = train_gp_model(train_data, kernel, warp, ard)
     print gp
-    #import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
     gp.checkgrad()
     rmse, ps, nlpd = get_metrics(gp, test_data)
-    #import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
     print "RMSE:\t\t%.4f" % rmse
     print "Pearsons:\t%.4f\t%.4f" % ps
     print "NLPD:\t\t%.4f" % nlpd
