@@ -68,8 +68,8 @@ def train_and_report(model_name, kernel, warp, ard):
         util.save_parameters(gp, os.path.join(output_dir, 'params'))
         util.save_metrics(metrics, os.path.join(output_dir, 'metrics'))
         util.save_gradients(gp, os.path.join(output_dir, 'grads'))
-        util.save_cautious_curves(gp, os.path.join(output_dir, 'curves'))
-        util.save_predictions(gp, os.path.join(output_dir, 'preds'))
+        util.save_cautious_curves(gp, test_data, os.path.join(output_dir, 'curves'))
+        util.save_predictions(gp, test_data, os.path.join(output_dir, 'preds'))
         gc.collect(2) # buggy GPy has allocation cycles...
                 
     

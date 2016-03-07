@@ -94,9 +94,8 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     if warp is None:
         gp = GPy.models.GPRegression(train_feats, train_labels, kernel=k)
     else:
+        w.rate = 0.15
         gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=k, warping_function=w)
-
-    # TODO: initialize models with previous runs
 
     # Now we optimize
     # We use random restarts for isotropic models and
@@ -173,7 +172,7 @@ def save_cautious_curves(model, test_data, target, median=False):
     preds = np.array(preds)
     metric_vals = []
     #import pprint; pprint.pprint(preds)
-    for i in xrange(1, len(preds)):
+    for i in xrange(1, len(preds) + 1):
         sub_preds = preds[:i, 0]
         sub_gold = preds[:i, 2]
         mae = MAE(sub_preds, sub_gold)
@@ -204,8 +203,8 @@ def load_parameters(gp, target):
         pdict = json.load(f)
     for p in pdict:
         if p == 'warp_tanh.psi':
-            gp[p] = np.array(pdict[p]).reshape(3, 3)
-        else:
+            gp[p] = np.array(pdict[p]).reshape(len(pdict[p]) / 3, 3)
+        elif p != 'log_likelihood':
             gp[p] = pdict[p]
 
 
