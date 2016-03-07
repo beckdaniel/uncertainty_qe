@@ -30,7 +30,7 @@ def split_all_data():
     for fold, index in enumerate(fold_indices):
         print index[0].shape
         train_data = data[index[0]]
-        test_data = data[index[0]]
+        test_data = data[index[1]]
         train_data, scaler = util.normalize_train_data(train_data)
         test_data = util.normalize_test_data(test_data, scaler)
 
@@ -52,7 +52,7 @@ def train_and_report(model_name, kernel, warp, ard):
     for fold in xrange(10):
         fold_dir = os.path.join(SPLIT_DIR, DATASET, str(fold))
         train_data = np.loadtxt(os.path.join(fold_dir, 'train'))
-        test_data = np.loadtxt(os.path.join(fold_dir, 'train'))
+        test_data = np.loadtxt(os.path.join(fold_dir, 'test'))
         params_file = None
         output_dir = os.path.join(dataset_dir, str(fold))
         if ard:
