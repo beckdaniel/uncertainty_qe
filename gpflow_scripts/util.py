@@ -77,17 +77,21 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     if warp == 'tanh1':
         w = GPflow.warping_functions.TanhFunction(n_terms=1)
         w.c = -1.0
-        w.d.fixed = True
     elif warp == 'tanh2':
         w = GPflow.warping_functions.TanhFunction(n_terms=2)
         w.c = [-1.0, -2.0]
-        w.d.fixed = True
     elif warp == 'tanh3':
         w = GPflow.warping_functions.TanhFunction(n_terms=3)
         w.c = [-1.0, -2.0, -3.0]
-        w.d.fixed = True
     elif warp == 'log':
         w = GPflow.warping_functions.LogFunction()
+
+    if 'tanh' in warp:
+        #w.a.transform = GPflow.transforms.Exp()
+        #w.b.transform = GPflow.transforms.Exp()
+        #w.d.transform = GPflow.transforms.Exp()
+        w.d.fixed = True
+
 
     # Finally we instantiate the model
     if warp is None:
@@ -202,7 +206,7 @@ if __name__ == "__main__":
     #import ipdb; ipdb.set_trace()
     #gp.checkgrad()
     rmse, ps, nlpd = get_metrics(gp, test_data)
-    #import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
     print "RMSE:\t\t%.4f" % rmse
     print "Pearsons:\t%.4f\t%.4f" % ps
     print "NLPD:\t\t%.4f" % nlpd

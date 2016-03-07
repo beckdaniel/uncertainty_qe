@@ -2,6 +2,7 @@ import numpy as np
 import GPy
 import sklearn.preprocessing as pp
 from sklearn.metrics import mean_squared_error as MSE
+from sklearn.metrics import mean_absolute_error as MAE
 from scipy.stats import pearsonr as pearson
 import json
 
@@ -98,27 +99,35 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     # TODO: initialize models with previous runs
 
     # Now we optimize
-    #gp.optimize_restarts(num_restarts=10, max_iters=200, robust=True)
-
-    gp.optimize(max_iters=100)
+    # We use random restarts for isotropic models and
+    # preloaded models for ARD ones.
+    if ard:
+        load_parameters(gp, params_file)
+        gp.optimize(max_iters=100)
+    else:
+        gp.optimize_restarts(num_restarts=10, max_iters=100, robust=True)
     return gp
 
 
-def get_metrics(model, test_data):
+def get_metrics(model, test_data, median=False):
     """
     Get predictions and evaluate.
     """
     feats = test_data[:, :-1]
     gold_labels = test_data[:, -1]
-    preds = model.predict(feats)
+    if median: # should only be used for Warped GPs
+        preds = model.predict(feats, median=True)
+    else:
+        preds = model.predict(feats)
     preds_mean = preds[0].flatten()
     preds_var = preds[1]
     #print preds_mean[:10]
     #print gold_labels[:10]
+    mae = MAE(preds_mean, gold_labels)
     rmse = np.sqrt(MSE(preds_mean, gold_labels))
     prs = pearson(preds_mean, gold_labels)
     nlpd = - np.mean(model.log_predictive_density(feats, gold_labels[:, None]))
-    return rmse, prs, nlpd
+    return mae, rmse, prs, nlpd
 
 
 def save_parameters(gp, target):
@@ -126,6 +135,7 @@ def save_parameters(gp, target):
     Save the parameters of a GP to a json file.
     """
     pdict = {n:list(gp[n].flatten()) for n in gp.parameter_names()}
+    pdict['log_likelihood'] = gp.log_likelihood()
     with open(target, 'w') as f:
         json.dump(pdict, f)
 
@@ -140,9 +150,50 @@ def save_gradients(gp, target):
 def save_metrics(metrics, target):
     with open(target, 'w') as f:
         f.write(str(metrics[0]) + '\n')
-        f.write(str(metrics[1][0]) + '\n')
-        f.write(str(metrics[1][1]) + '\n')
-        f.write(str(metrics[2]) + '\n')
+        f.write(str(metrics[1]) + '\n')
+        f.write(str(metrics[2][0]) + '\n')
+        f.write(str(metrics[2][1]) + '\n')
+        f.write(str(metrics[3]) + '\n')
+
+
+def save_cautious_curves(model, test_data, target, median=False):
+    """
+    Sort predictions by variance and calculate
+    metrics on the top X% most confident ones,
+    generating a curve on X.
+    """
+    feats = test_data[:, :-1]
+    gold_labels = test_data[:, -1]
+    if median: # should only be used for Warped GPs
+        preds = model.predict(feats, median=True)
+    else:
+        preds = model.predict(feats)
+    preds = zip(preds[0].flatten(), preds[1].flatten(), gold_labels)
+    preds.sort(key=lambda x: x[0])
+    preds = np.array(preds)
+    metric_vals = []
+    #import pprint; pprint.pprint(preds)
+    for i in xrange(1, len(preds)):
+        sub_preds = preds[:i, 0]
+        sub_gold = preds[:i, 2]
+        mae = MAE(sub_preds, sub_gold)
+        rmse = np.sqrt(MSE(sub_preds, sub_gold))
+        prs = pearson(sub_preds, sub_gold)
+        metric_vals.append([mae, rmse, prs[0], prs[1]])
+    np.savetxt(target, metric_vals, fmt='%.4f')
+
+
+def save_predictions(model, test_data, target, median=False):
+    feats = test_data[:, :-1]
+    gold_labels = test_data[:, -1]
+    if median: # should only be used for Warped GPs
+        preds = model.predict(feats, median=True)
+    else:
+        preds = model.predict(feats)
+    preds = zip(preds[0].flatten(), preds[1].flatten(), gold_labels)
+    preds.sort(key=lambda x: x[1])
+    preds = np.array(preds)
+    np.savetxt(target, preds, fmt='%.4f')
 
 
 def load_parameters(gp, target):
@@ -183,12 +234,14 @@ if __name__ == "__main__":
 
     gp = train_gp_model(train_data, kernel, warp, ard)
     print gp
+    import ipdb; ipdb.set_trace()
+    mae, rmse, ps, nlpd = get_metrics(gp, test_data)
     #import ipdb; ipdb.set_trace()
-    gp.checkgrad()
-    rmse, ps, nlpd = get_metrics(gp, test_data)
-    #import ipdb; ipdb.set_trace()
+    print "MAE:\t\t%.4f" % mae
     print "RMSE:\t\t%.4f" % rmse
     print "Pearsons:\t%.4f\t%.4f" % ps
     print "NLPD:\t\t%.4f" % nlpd
+    save_cautious_curves(gp, test_data, 'test_curves_none_alt')
+    save_predictions(gp, test_data, 'test_preds_none_alt')
     #save_parameters(gp, '../saved_models/' + model)
     
