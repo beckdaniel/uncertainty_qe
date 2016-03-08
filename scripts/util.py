@@ -54,7 +54,8 @@ def normalize_test_data(test_data, scaler):
     return np.concatenate((norm_feats, labels_pw[:, None]), axis=1)
 
 
-def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=None, initial_y=0):
+def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, 
+                   params_file=None, initial_y=0, preload=False):
     """
     Train a GP model with some training data.
     A model has:
@@ -100,9 +101,10 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     # Now we optimize
     # We use random restarts for isotropic models and
     # preloaded models for ARD ones.
-    if ard:
+    if params_file is not None:
         load_parameters(gp, params_file)
-        gp.optimize(max_iters=100)
+        if not preload: # we might as well just preload
+            gp.optimize(max_iters=100)
     else:
         gp.optimize_restarts(num_restarts=10, max_iters=100, robust=True)
     return gp
@@ -144,6 +146,13 @@ def save_gradients(gp, target):
     Save the gradients of a GP.
     """
     np.savetxt(target, gp.gradient)
+
+
+def save_al_metrics(al_metrics, target):
+    """
+    Save the sequence of metrics from AL.
+    """
+    np.savetxt(target, np.array(al_metrics), fmt='%.4f')
 
 
 def save_metrics(metrics, target):
