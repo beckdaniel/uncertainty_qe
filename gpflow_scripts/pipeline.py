@@ -99,4 +99,4 @@ if KERNEL == 'split':
     split_all_data()
 else:
     MODEL_DIR = os.path.join('..', 'models', MODEL_NAME)
-    train_and_report(MODEL_NAME, KERNEL, WARP, ARD, likelihood=ll)
+    train_and_report(MODEL_NAME, KERNEL, WARP, ARD, likelihood=LL)
