@@ -53,7 +53,8 @@ def normalize_test_data(test_data, scaler):
     return np.concatenate((norm_feats, labels_pw[:, None]), axis=1)
 
 
-def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=None, initial_y=0):
+def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, 
+                   params_file=None, initial_y=0, likelihood='gaussian'):
     """
     Train a GP model with some training data.
     A model has:
@@ -73,6 +74,13 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     elif kernel == 'mat52':
         k = GPflow.kernels.Matern52(17, ARD=ard)
 
+    # The likelihood
+    if likelihood == 'gaussian':
+        ll = GPflow.likelihoods.Gaussian()
+    elif likelihood == 'student':
+        ll = GPflow.likelihoods.StudentT(deg_free=4.0)
+        #ll.scale = 100.0
+
     # Now we build the warping function
     if warp == 'tanh1':
         w = GPflow.warping_functions.TanhFunction(n_terms=1)
@@ -86,7 +94,7 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
     elif warp == 'log':
         w = GPflow.warping_functions.LogFunction()
 
-    if 'tanh' in warp:
+    if warp is not None and 'tanh' in warp:
         #w.a.transform = GPflow.transforms.Exp()
         #w.b.transform = GPflow.transforms.Exp()
         #w.d.transform = GPflow.transforms.Exp()
@@ -95,9 +103,10 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False, params_file=N
 
     # Finally we instantiate the model
     if warp is None:
-        gp = GPflow.gpr.GPR(train_feats, train_labels, k)
+        gp = GPflow.vgp.VGP(train_feats, train_labels, k, ll)
     else:
-        gp = GPflow.warped_gp.WarpedGP(train_feats, train_labels, k, warp=w)
+        gp = GPflow.warped_gp.WarpedGP(train_feats, train_labels, k, warp=w, likelihood=ll)
+        gp.median = True
 
     # TODO: initialize models with previous runs
 
@@ -194,6 +203,7 @@ if __name__ == "__main__":
     warp = sys.argv[6]
     if warp == "None":
         warp = None
+    ll = sys.argv[8]
     data = read_data(FEATS_FILE, LABELS_FILE, size=SIZE)
     train_data = data[:SPLIT, :]
     test_data = data[SPLIT:, :]
@@ -201,8 +211,9 @@ if __name__ == "__main__":
     train_data, scaler = normalize_train_data(train_data, hter=False)
     test_data = normalize_test_data(test_data, scaler)
 
-    gp = train_gp_model(train_data, kernel, warp, ard)
-    print gp
+    gp = train_gp_model(train_data, kernel, warp, ard, likelihood=ll)
+    #print gp
+    print gp.likelihood
     #import ipdb; ipdb.set_trace()
     #gp.checkgrad()
     rmse, ps, nlpd = get_metrics(gp, test_data)
