@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
     gp = train_gp_model(train_data, kernel, warp, ard)
     print gp
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
     mae, rmse, ps, nlpd = get_metrics(gp, test_data)
     #import ipdb; ipdb.set_trace()
     print "MAE:\t\t%.4f" % mae
