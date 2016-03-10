@@ -81,7 +81,8 @@ DATASET = sys.argv[1]
 KERNEL = sys.argv[2]
 WARP = sys.argv[3]
 ARD = sys.argv[4]
-MODEL_NAME = '_'.join([KERNEL, WARP, ARD])
+LL = sys.argv[5]
+MODEL_NAME = '_'.join([KERNEL, WARP, ARD, LL])
 
 if ARD == 'False':
     ARD = False
@@ -98,4 +99,4 @@ if KERNEL == 'split':
     split_all_data()
 else:
     MODEL_DIR = os.path.join('..', 'models', MODEL_NAME)
-    train_and_report(MODEL_NAME, KERNEL, WARP, ARD)
+    train_and_report(MODEL_NAME, KERNEL, WARP, ARD, likelihood=ll)
