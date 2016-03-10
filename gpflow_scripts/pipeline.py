@@ -43,7 +43,7 @@ def split_all_data():
         np.savetxt(os.path.join(fold_dir, 'test'), test_data, fmt="%.5f")
 
 
-def train_and_report(model_name, kernel, warp, ard):
+def train_and_report(model_name, kernel, warp, ard, likelihood='gaussian'):
     dataset_dir = os.path.join(MODEL_DIR, DATASET)
     try: 
         os.makedirs(dataset_dir)
@@ -59,7 +59,7 @@ def train_and_report(model_name, kernel, warp, ard):
         #    iso_model = model.replace('ard', 'iso')
         #    params_file = os.path.join('..', 'models', iso_model,
         #                               DATASET, str(fold), 'params')
-        gp = util.train_gp_model(train_data, kernel, warp, ard, params_file)
+        gp = util.train_gp_model(train_data, kernel, warp, ard, params_file, likelihood=likelihood)
         metrics = util.get_metrics(gp, test_data)
         output_dir = os.path.join(dataset_dir, str(fold))
         try: 
