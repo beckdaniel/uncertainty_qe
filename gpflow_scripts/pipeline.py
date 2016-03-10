@@ -52,7 +52,7 @@ def train_and_report(model_name, kernel, warp, ard, likelihood='gaussian'):
     for fold in xrange(10):
         fold_dir = os.path.join(SPLIT_DIR, DATASET, str(fold))
         train_data = np.loadtxt(os.path.join(fold_dir, 'train'))
-        test_data = np.loadtxt(os.path.join(fold_dir, 'train'))
+        test_data = np.loadtxt(os.path.join(fold_dir, 'test'))
         params_file = None
         #if 'ard' in model:
         # we preload the paramters
