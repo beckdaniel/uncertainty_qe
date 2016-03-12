@@ -2,6 +2,7 @@ import numpy as np
 import GPflow
 import sklearn.preprocessing as pp
 from sklearn.metrics import mean_squared_error as MSE
+from sklearn.metrics import mean_absolute_error as MAE
 from scipy.stats import pearsonr as pearson
 import json
 
@@ -144,17 +145,23 @@ def get_metrics(model, test_data):
     preds_var = preds[1]
     #print preds_mean[:10]
     #print gold_labels[:10]
+    mae = MAE(preds_mean, gold_labels)
     rmse = np.sqrt(MSE(preds_mean, gold_labels))
     prs = pearson(preds_mean, gold_labels)
     nlpd = - np.mean(model.predict_density(feats, gold_labels[:, None]))
-    return rmse, prs, nlpd
+    return mae, rmse, prs, nlpd
 
 
 def save_parameters(gp, target):
     """
     Save the parameters of a GP to a json file.
     """
-    pdict = {n:list(gp[n].flatten()) for n in gp.parameter_names()}
+    pdict = {}
+    pdict['likelihood'] = gp.likelihood.get_free_state()[0]
+    pdict['kern_variance'] = gp.kern.variance.get_free_state()[0]
+    pdict['kern_lengthscale'] = list(gp.kern.lengthscales.get_free_state())
+    pdict['log_likelihood'] = gp._objective(gp.get_free_state())[0][0]
+    #pdict = {n:list(gp[n].flatten()) for n in gp.parameter_names()}
     with open(target, 'w') as f:
         json.dump(pdict, f)
 
@@ -169,9 +176,50 @@ def save_gradients(gp, target):
 def save_metrics(metrics, target):
     with open(target, 'w') as f:
         f.write(str(metrics[0]) + '\n')
-        f.write(str(metrics[1][0]) + '\n')
-        f.write(str(metrics[1][1]) + '\n')
-        f.write(str(metrics[2]) + '\n')
+        f.write(str(metrics[1]) + '\n')
+        f.write(str(metrics[2][0]) + '\n')
+        f.write(str(metrics[2][1]) + '\n')
+        f.write(str(metrics[3]) + '\n')
+
+
+def save_cautious_curves(model, test_data, target, median=False):
+    """
+    Sort predictions by variance and calculate
+    metrics on the top X% most confident ones,
+    generating a curve on X.
+    """
+    feats = test_data[:, :-1]
+    gold_labels = test_data[:, -1]
+    if median: # should only be used for Warped GPs
+        preds = model.predict_y(feats, median=True)
+    else:
+        preds = model.predict_y(feats)
+    preds = zip(preds[0].flatten(), preds[1].flatten(), gold_labels)
+    preds.sort(key=lambda x: x[0])
+    preds = np.array(preds)
+    metric_vals = []
+    #import pprint; pprint.pprint(preds)
+    for i in xrange(1, len(preds) + 1):
+        sub_preds = preds[:i, 0]
+        sub_gold = preds[:i, 2]
+        mae = MAE(sub_preds, sub_gold)
+        rmse = np.sqrt(MSE(sub_preds, sub_gold))
+        prs = pearson(sub_preds, sub_gold)
+        metric_vals.append([mae, rmse, prs[0], prs[1]])
+    np.savetxt(target, metric_vals, fmt='%.4f')
+
+
+def save_predictions(model, test_data, target, median=False):
+    feats = test_data[:, :-1]
+    gold_labels = test_data[:, -1]
+    if median: # should only be used for Warped GPs
+        preds = model.predict_y(feats, median=True)
+    else:
+        preds = model.predict_y(feats)
+    preds = zip(preds[0].flatten(), preds[1].flatten(), gold_labels)
+    preds.sort(key=lambda x: x[1])
+    preds = np.array(preds)
+    np.savetxt(target, preds, fmt='%.4f')
 
 
 def load_parameters(gp, target):
@@ -180,11 +228,14 @@ def load_parameters(gp, target):
     """
     with open(target) as f:
         pdict = json.load(f)
-    for p in pdict:
-        if p == 'warp_tanh.psi':
-            gp[p] = np.array(pdict[p]).reshape(3, 3)
-        else:
-            gp[p] = pdict[p]
+    gp.likelihood.set_state(pdict['likelihood'])
+    gp.kern.variance.set_state(pdict['kern_variance'])
+    gp.kern.lengthscales.set_state(pdict['kern_lengthscale'])
+    #for p in pdict:
+    #    if p == 'warp_tanh.psi':
+    #        gp[p] = np.array(pdict[p]).reshape(3, 3)
+    #    else:
+    #        gp[p] = pdict[p]
 
 
 
@@ -214,7 +265,7 @@ if __name__ == "__main__":
     gp = train_gp_model(train_data, kernel, warp, ard, likelihood=ll)
     #print gp
     print gp.likelihood
-    #import ipdb; ipdb.set_trace()
+    import ipdb; ipdb.set_trace()
     #gp.checkgrad()
     rmse, ps, nlpd = get_metrics(gp, test_data)
     import ipdb; ipdb.set_trace()

@@ -53,22 +53,23 @@ def train_and_report(model_name, kernel, warp, ard, likelihood='gaussian'):
         fold_dir = os.path.join(SPLIT_DIR, DATASET, str(fold))
         train_data = np.loadtxt(os.path.join(fold_dir, 'train'))
         test_data = np.loadtxt(os.path.join(fold_dir, 'test'))
+        output_dir = os.path.join(dataset_dir, str(fold))
         params_file = None
-        #if 'ard' in model:
-        # we preload the paramters
-        #    iso_model = model.replace('ard', 'iso')
-        #    params_file = os.path.join('..', 'models', iso_model,
-        #                               DATASET, str(fold), 'params')
+        if ard:
+            iso_dir = output_dir.replace('True', 'False')
+            params_file = os.path.join(iso_dir, 'params')
         gp = util.train_gp_model(train_data, kernel, warp, ard, params_file, likelihood=likelihood)
         metrics = util.get_metrics(gp, test_data)
-        output_dir = os.path.join(dataset_dir, str(fold))
+
         try: 
             os.makedirs(output_dir)
         except OSError:
             print "skipping output folder"
         util.save_parameters(gp, os.path.join(output_dir, 'params'))
         util.save_metrics(metrics, os.path.join(output_dir, 'metrics'))
-        util.save_gradients(gp, os.path.join(output_dir, 'grads'))
+        #util.save_gradients(gp, os.path.join(output_dir, 'grads'))
+        util.save_cautious_curves(gp, test_data, os.path.join(output_dir, 'curves'))
+        util.save_predictions(gp, test_data, os.path.join(output_dir, 'preds'))
         #gc.collect(2) # buggy GPy has allocation cycles...
                 
     
