@@ -55,21 +55,27 @@ def train_and_report(model_name, kernel, warp, ard):
         test_data = np.loadtxt(os.path.join(fold_dir, 'test'))
         params_file = None
         output_dir = os.path.join(dataset_dir, str(fold))
-        if ard:
-            iso_dir = output_dir.replace('True', 'False')
-            params_file = os.path.join(iso_dir, 'params')
-        gp = util.train_gp_model(train_data, kernel, warp, ard, params_file)
-        metrics = util.get_metrics(gp, test_data)
-
         try: 
             os.makedirs(output_dir)
         except OSError:
             print "skipping output folder"
+
+        if ard:
+            iso_dir = output_dir.replace('True', 'False')
+            params_file = os.path.join(iso_dir, 'params')
+        gp = util.train_gp_model(train_data, kernel, warp, ard, params_file)
         util.save_parameters(gp, os.path.join(output_dir, 'params'))
-        util.save_metrics(metrics, os.path.join(output_dir, 'metrics'))
         util.save_gradients(gp, os.path.join(output_dir, 'grads'))
+        metrics = util.get_metrics(gp, test_data)
+
+
+
+        util.save_metrics(metrics, os.path.join(output_dir, 'metrics'))
         util.save_cautious_curves(gp, test_data, os.path.join(output_dir, 'curves'))
         util.save_predictions(gp, test_data, os.path.join(output_dir, 'preds'))
+
+        asym_metrics = util.get_asym_metrics(gp, test_data)
+        util.save_asym_metrics(asym_metrics, os.path.join(output_dir, 'asym_metrics'))
         gc.collect(2) # buggy GPy has allocation cycles...
                 
     

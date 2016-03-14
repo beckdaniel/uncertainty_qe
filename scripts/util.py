@@ -88,6 +88,18 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False,
         w = GPy.util.warping_functions.TanhFunction(n_terms=3, initial_y=initial_y)
         w.psi[:,2] = [-1.0, -2.0, -3.0]
         w.d.constrain_fixed(1)
+    elif warp == 'logtanh1':
+        w = GPy.util.warping_functions.LogTanhFunction(n_terms=1, initial_y=initial_y)
+        w.psi[:,2] = -1.0
+        w.d.constrain_fixed(1)
+    elif warp == 'logtanh2':
+        w = GPy.util.warping_functions.LogTanhFunction(n_terms=2, initial_y=initial_y)
+        w.psi[:,2] = [-1.0, -2.0]
+        w.d.constrain_fixed(1)
+    elif warp == 'logtanh3':
+        w = GPy.util.warping_functions.LogTanhFunction(n_terms=3, initial_y=initial_y)
+        w.psi[:,2] = [-1.0, -2.0, -3.0]
+        w.d.constrain_fixed(1)
     elif warp == 'log':
         w = GPy.util.warping_functions.LogFunction()
 
@@ -95,7 +107,7 @@ def train_gp_model(train_data, kernel='rbf', warp=None, ard=False,
     if warp is None:
         gp = GPy.models.GPRegression(train_feats, train_labels, kernel=k)
     else:
-        w.rate = 0.15
+        #w.rate = 0.15
         gp = GPy.models.WarpedGP(train_feats, train_labels, kernel=k, warping_function=w)
 
     # Now we optimize
