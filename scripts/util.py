@@ -140,8 +140,31 @@ def get_metrics(model, test_data, median=False):
     rmse = np.sqrt(MSE(preds_mean, gold_labels))
     prs = pearson(preds_mean, gold_labels)
     nlpd = - np.mean(model.log_predictive_density(feats, gold_labels[:, None]))
-    pred_q = model.predict_quantiles(feats, quantiles=(25., 75.))[1].flatten()
+    pred_q = model.predict_quantiles(feats, quantiles=(25., 75.))[1].flatten()    
     return mae, rmse, prs, nlpd
+
+
+def get_rec_metrics(model, test_data, median=False):
+    """
+    Get predictions and evaluate.
+    """
+    feats = test_data[:, :-1]
+    gold_labels = 1 / test_data[:, -1]
+    if median: # should only be used for Warped GPs
+        preds = model.predict(feats, median=True)
+    else:
+        preds = model.predict(feats)
+    preds_mean = preds[0].flatten()
+    rec_preds = model.predict_reciprocal(feats).flatten()
+
+    mae_naive = MAE(1/preds_mean, gold_labels)
+    rmse_naive = np.sqrt(MSE(1/preds_mean, gold_labels))
+    prs_naive = pearson(1/preds_mean, gold_labels)
+
+    mae_rec = MAE(rec_preds, gold_labels)
+    rmse_rec = np.sqrt(MSE(rec_preds, gold_labels))
+    prs_rec = pearson(rec_preds, gold_labels)
+    return mae_naive, rmse_naive, prs_naive, mae_rec, rmse_rec, prs_rec
 
 
 def get_asym_metrics(model, test_data):
@@ -171,6 +194,15 @@ def asym_mae(preds, gold, w=3, optimistic=False):
 
 def save_asym_metrics(metrics, target):
     np.savetxt(target, np.array(metrics).T, fmt='%.4f')
+
+
+def save_rec_metrics(metrics, target):
+    with open(target, 'w') as f:
+        f.write('%5s\t%5s\n' % ('NAIVE', 'RECIP'))
+        f.write('%.4f\t%.4f\n' % (metrics[0], metrics[3]))
+        f.write('%.4f\t%.4f\n' % (metrics[1], metrics[4]))
+        f.write('%.4f\t%.4f\n' % (metrics[2][0], metrics[5][0]))
+        f.write('%.4f\t%.4f\n' % (metrics[2][1], metrics[5][1]))
 
 
 def save_parameters(gp, target):
