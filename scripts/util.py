@@ -128,7 +128,7 @@ def get_metrics(model, test_data, median=False):
     """
     feats = test_data[:, :-1]
     gold_labels = test_data[:, -1]
-    if median: # should only be used for Warped GPs
+    if median and isinstance(model, GPy.models.WarpedGP): # should only be used for Warped GPs
         preds = model.predict(feats, median=True)
     else:
         preds = model.predict(feats)
@@ -192,7 +192,33 @@ def asym_mae(preds, gold, w=3, optimistic=False):
     return np.mean(np.abs(diffs) * weights)
 
 
+def get_linex_metrics(model, test_data):
+    feats = test_data[:, :-1]
+    gold_labels = test_data[:, -1]
+    pess_linexes = []
+    opt_linexes = []    
+    for w in xrange(1, 10):
+        means, variances = model.predict(feats)
+        preds_pess = means + ((w * variances) / 2.)
+        preds_opt = means - ((w * variances) / 2.)
+        pess_linex = linex_loss(preds_pess, gold_labels, w=-w)
+        opt_linex = linex_loss(preds_opt, gold_labels, w=w)
+        pess_linexes.append(pess_linex)
+        opt_linexes.append(opt_linex)
+        #break
+    return [pess_linexes, opt_linexes]
+
+
+def linex_loss(preds, gold, w=3):
+    delta = (preds - gold).flatten()
+    return np.mean(np.exp(delta * w) - (delta * w) - 1)
+
+
 def save_asym_metrics(metrics, target):
+    np.savetxt(target, np.array(metrics).T, fmt='%.4f')
+
+
+def save_linex_metrics(metrics, target):
     np.savetxt(target, np.array(metrics).T, fmt='%.4f')
 
 

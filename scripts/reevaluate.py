@@ -19,10 +19,12 @@ def eval_and_report(model_name, kernel, warp, ard):
         gp = util.train_gp_model(train_data, kernel, warp, ard, 
                                  params_file=params_file, preload=True)
         #metrics = util.get_metrics(gp, test_data)
-        asym_metrics = util.get_asym_metrics(gp, test_data)
-        util.save_asym_metrics(asym_metrics, os.path.join(model_dir, 'asym_metrics'))
-        rec_metrics = util.get_rec_metrics(gp, test_data)
-        util.save_rec_metrics(rec_metrics, os.path.join(model_dir, 'rec_metrics'))
+        #asym_metrics = util.get_asym_metrics(gp, test_data)
+        #util.save_asym_metrics(asym_metrics, os.path.join(model_dir, 'asym_metrics'))
+        #rec_metrics = util.get_rec_metrics(gp, test_data)
+        #util.save_rec_metrics(rec_metrics, os.path.join(model_dir, 'rec_metrics'))
+        linex_metrics = util.get_linex_metrics(gp, test_data)
+        util.save_linex_metrics(linex_metrics, os.path.join(model_dir, 'linex_metrics'))
         gc.collect(2) # buggy GPy has allocation cycles...
                 
     
