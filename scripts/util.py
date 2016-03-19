@@ -197,7 +197,7 @@ def get_linex_metrics(model, test_data):
     gold_labels = test_data[:, -1]
     pess_linexes = []
     opt_linexes = []    
-    for w in xrange(1, 10):
+    for w in np.arange(0.25, 2.01, 0.25):
         means, variances = model.predict(feats)
         preds_pess = means + ((w * variances) / 2.)
         preds_opt = means - ((w * variances) / 2.)
