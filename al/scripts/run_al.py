@@ -50,7 +50,7 @@ def train_al_and_report(model_name, kernel, warp, ard):
             
             #if pool_data.shape[0] == 0:
             #    break
-            if train_data.shape[0] == 100:
+            if train_data.shape[0] == 500:
                 break
 
             print pool_data.shape
