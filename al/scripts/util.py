@@ -388,11 +388,14 @@ def get_pearson(gp, test_data, samples=1000, its=10):
     return r_mean, r_loss
 
 
-def query(gp, pool_data):
-    means, vars = gp.predict(pool_data)
-    max_var_i = np.argmax(vars.flatten())
-    return pool_data[max_var_i], max_var_i
-
+def query(gp, pool_data, random=False):
+    if random:
+        rand_i = np.random.randint(0, pool_data.shape[0])
+        return pool_data[rand_i], rand_i
+    else:
+        means, vars = gp.predict(pool_data)
+        max_var_i = np.argmax(vars.flatten())
+        return pool_data[max_var_i], max_var_i
 
 
 if __name__ == "__main__":
